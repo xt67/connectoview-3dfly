@@ -1,0 +1,10 @@
+# Demo (dependency-free, runs anywhere — used by tests):
+#   python -m src.connectoview --demo
+#   python -m unittest discover -s tests -v
+#
+# Live / offline Plotly exports need the scientific stack:
+plotly>=5.18
+pandas>=1.5
+numpy>=1.24
+neuprint-python>=0.4.0
+navis>=1.6

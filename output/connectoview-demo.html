@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConnectoView 3D - Demo</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; background: #070b13; color: #edf3ff; }
+    header { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:18px 24px; border-bottom:1px solid #273249; }
+    h1 { font-size: 1.15rem; margin:0; } .badge { color:#ffd66d; font-size:.82rem; }
+    main { display:grid; grid-template-columns: minmax(0, 1fr) 272px; min-height: calc(100vh - 69px); }
+    #plot { min-height: 580px; } aside { padding:22px; background:#0d1421; border-left:1px solid #273249; }
+    h2 { font-size:.92rem; margin:0 0 8px; } p, label { color:#b9c6da; font-size:.86rem; line-height:1.45; }
+    label { display:block; margin-top:20px; } input { width:100%; accent-color:#71a9ff; } output { color:#fff; float:right; }
+    .note { margin-top:22px; padding:12px; border-left:3px solid #ffd66d; background:#171d28; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } aside { border-left:0; border-top:1px solid #273249; } #plot { min-height:460px; } }
+  </style>
+</head>
+<body>
+  <header><h1>ConnectoView 3D <span class="badge">MVP / synthetic demo</span></h1><span id="source"></span></header>
+  <main>
+    <div id="plot" aria-label="Interactive 3D connectome plot"></div>
+    <aside>
+      <h2>Scene controls</h2>
+      <p>Use the legend in the plot to show or hide each neuron, synapse class, and ROI envelope.</p>
+      <label for="threshold">Synapse weight minimum <output id="thresholdValue">1</output></label>
+      <input id="threshold" type="range" min="1" max="12" value="1">
+      <label for="opacity">ROI envelope opacity <output id="opacityValue">15%</output></label>
+      <input id="opacity" type="range" min="0" max="40" value="15">
+      <p class="note">This view contains synthetic geometry and synthetic synapses. It is a UI prototype, not scientific evidence.</p>
+    </aside>
+  </main>
+  <script id="connectoview-data" type="application/json">{"sourceLabel":"Synthetic demonstration data - not a neuPrint query","neurons":[{"name":"Demo neuron A","color":"#4dff88","x":[-34,-24,-14,-4,8],"y":[-10,-5,2,8,14],"z":[-28,-12,2,16,30]},{"name":"Demo neuron B","color":"#ff4dde","x":[30,20,12,4,-8],"y":[-22,-14,-5,5,14],"z":[-20,-8,4,16,26]}],"inputs":[{"x":-21,"y":-3,"z":-10,"weight":8},{"x":-10,"y":3,"z":5,"weight":4},{"x":10,"y":-8,"z":0,"weight":12},{"x":17,"y":-11,"z":-4,"weight":2},{"x":2,"y":7,"z":15,"weight":6}],"outputs":[{"x":-31,"y":-8,"z":-23,"weight":9},{"x":-7,"y":7,"z":14,"weight":5},{"x":19,"y":-14,"z":-8,"weight":11},{"x":7,"y":-1,"z":7,"weight":3},{"x":-1,"y":10,"z":21,"weight":7}]}</script>
+  <script>
+    const data = JSON.parse(document.getElementById('connectoview-data').textContent);
+    document.getElementById('source').textContent = data.sourceLabel;
+    const synapseTrace = (name, points, color, size) => ({
+      type: 'scatter3d', mode: 'markers', name, x: points.map(p => p.x), y: points.map(p => p.y), z: points.map(p => p.z),
+      customdata: points.map(p => p.weight), marker: { color, size, opacity: .9 },
+      hovertemplate: name + '<br>weight: %{customdata}<extra></extra>'
+    });
+    const neuronTraces = data.neurons.map(n => ({
+      type: 'scatter3d', mode: 'lines+markers', name: n.name, x:n.x, y:n.y, z:n.z,
+      line:{color:n.color, width:7}, marker:{color:n.color, size:3}, hovertemplate:n.name+'<extra></extra>'
+    }));
+    const roiTrace = {
+      type:'mesh3d', name:'Demo ROI envelope', opacity:.15, color:'#aab6c8',
+      x:[-45,45,45,-45,-45,45,45,-45], y:[-38,-38,38,38,-38,-38,38,38], z:[-34,-34,-34,-34,38,38,38,38],
+      i:[0,0,0,1,1,2,4,4,5,5,6,6], j:[1,2,3,5,6,6,5,6,6,7,2,3], k:[2,3,4,6,5,7,6,7,7,4,3,7],
+      hovertemplate:'Synthetic ROI envelope<extra></extra>'
+    };
+    const traces = [...neuronTraces, synapseTrace('Input synapses',data.inputs,'#43a7ff',4), synapseTrace('Output synapses',data.outputs,'#ff5252',5), roiTrace];
+    const synapseTraceIndices = [neuronTraces.length, neuronTraces.length + 1];
+    const layout = {
+      paper_bgcolor:'#070b13', plot_bgcolor:'#070b13', font:{color:'#edf3ff'}, margin:{l:0,r:0,t:12,b:0},
+      legend:{bgcolor:'rgba(13,20,33,.86)', bordercolor:'#34445f', borderwidth:1},
+      scene:{xaxis:{title:'X',backgroundcolor:'#070b13',gridcolor:'#24334c'}, yaxis:{title:'Y',backgroundcolor:'#070b13',gridcolor:'#24334c'}, zaxis:{title:'Z',backgroundcolor:'#070b13',gridcolor:'#24334c'}, aspectmode:'data'},
+      uirevision:'connectoview-demo'
+    };
+    Plotly.newPlot('plot', traces, layout, {responsive:true, displaylogo:false});
+    const threshold = document.getElementById('threshold');
+    const opacity = document.getElementById('opacity');
+    threshold.addEventListener('input', () => {
+      const minimum = Number(threshold.value); document.getElementById('thresholdValue').textContent = minimum;
+      synapseTraceIndices.forEach((traceIndex, index) => {
+        const points = index ? data.outputs : data.inputs;
+        const kept = points.filter(p => p.weight >= minimum);
+        Plotly.restyle('plot', {x:[kept.map(p=>p.x)], y:[kept.map(p=>p.y)], z:[kept.map(p=>p.z)], customdata:[kept.map(p=>p.weight)]}, [traceIndex]);
+      });
+    });
+    opacity.addEventListener('input', () => {
+      const value = Number(opacity.value) / 100; document.getElementById('opacityValue').textContent = opacity.value + '%';
+      Plotly.restyle('plot', {opacity:value}, [traces.length - 1]);
+    });
+  </script>
+</body>
+</html>
