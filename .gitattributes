@@ -1,0 +1,2 @@
+# Generated dashboards: exclude from GitHub language stats
+output/*.html linguist-vendored
